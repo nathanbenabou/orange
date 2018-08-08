@@ -1,7 +1,7 @@
 //arguments db_number xmin xmax ymin ymax
 
 
-const db_number = process.argv[2];
+var db_number = Math.ceil(Number(process.argv[2]));
 const xmin_init = Number(process.argv[3]);
 const xmax_init = Number(process.argv[4]);
 const ymin_init = Number(process.argv[5]);
@@ -68,7 +68,22 @@ function sendData(options, callback) {
               //console.log(data);
               dbo = db_mlab.db(db_name);
               await dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
-              if (err) throw err;
+              if (err) {
+                db_number+=1;
+                db_url = "mongodb://nb:a12345@"+mlabs[db_number];
+                MongoClient.connect(db_url, function(err, db) {
+                  if (err) throw err;
+                  db_mlab = db;
+                  //dbo = db.db(db_name);
+                  db_connected.emit('update');
+                });
+                dbo = db_mlab.db(db_name);
+                dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
+                  if(err) throw err;
+
+              });
+            };
+
               console.log("Number of documents inserted: " + res.insertedCount);
               callback(error);
                 //db.close();
