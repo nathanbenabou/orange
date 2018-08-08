@@ -14,4 +14,4 @@ sudo apt-get -f install git
 git clone https://github.com/nathanbenabou/orange.git
 cd orange
 npm install
-node request.js $1 $2 $3 $4 $5
+node request.js $1 $2 $3 $4 $5 >& log.txt

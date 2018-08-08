@@ -61,7 +61,7 @@ function sendData(options, callback) {
           if (!error && response.statusCode == 200) {
 
             var data_parsed = JSON.parse(data).features
-            console.log("IN");
+            //console.log("IN");
 
             var data_to_send = data_parsed.map(function(x){return x.attributes});
             if (data_to_send.length > 0){
@@ -77,7 +77,7 @@ function sendData(options, callback) {
               callback(error);
             }
 
-            console.log('OUT');
+            //console.log('OUT');
             //body.emit('update');
           }
         };
