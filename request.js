@@ -13,7 +13,7 @@ const Json2csvParser = require('json2csv').Parser;
 
 var MongoClient = require('mongodb').MongoClient;
 const mlabs = require('./mlabs.json');
-const db_name = "orange"+db_number;
+var db_name = "orange"+db_number;
 var db_url = "mongodb://nb:a12345@"+mlabs[db_number]; //"mongodb://localhost:27017/mydb";
 
 
@@ -47,7 +47,8 @@ const token = "3TtIJGyLUffDA40eIgyhE_xUUOxV-HO84LpCYkXbnOa2HBMAGUJqGtkt5Leiwn4GT
 var EventEmitter = require("events").EventEmitter;
 var body = new EventEmitter();
 var db_connected = new EventEmitter();
-var db_mlab
+var db_mlab;
+var state = "running";
 
 MongoClient.connect(db_url, function(err, db) {
   if (err) throw err;
@@ -57,7 +58,8 @@ MongoClient.connect(db_url, function(err, db) {
 });
 
 function sendData(options, callback) {
-     async function main_callback(error, response, data) {
+     function main_callback(error, response, data) {
+
           if (!error && response.statusCode == 200) {
 
             var data_parsed = JSON.parse(data).features
@@ -66,29 +68,49 @@ function sendData(options, callback) {
             var data_to_send = data_parsed.map(function(x){return x.attributes});
             if (data_to_send.length > 0){
               //console.log(data);
+
+              //console.log(db_name);
               dbo = db_mlab.db(db_name);
-              await dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
+              dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
               if (err) {
-                db_number+=1;
-                db_url = "mongodb://nb:a12345@"+mlabs[db_number];
-                MongoClient.connect(db_url, function(err, db) {
-                  if (err) throw err;
-                  db_mlab = db;
-                  //dbo = db.db(db_name);
-                  db_connected.emit('update');
-                });
-                dbo = db_mlab.db(db_name);
-                dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
-                  if(err) throw err;
 
-              });
-            };
+                if (state == "switched"){
+                  db_connected.emit('resume', data_to_send);
+                  callback(error);
+                }
+                if (state == "running"){
+                  db_connected.emit('pause');
 
+                  //state = "paused";
+                  console.log("DB is full, switching to next");
+                  db_number+=1;
+                  db_name = "orange"+db_number;
+                  db_url = "mongodb://nb:a12345@"+mlabs[db_number];
+                  console.log(db_url);
+
+                  MongoClient.connect(db_url, function(err, db) {
+                    if (err) throw err;
+
+                    db_mlab = db;
+                    //dbo = db.db(db_name);
+                    //db_connected.emit('update');
+                    //console.log("connected");
+                    db_connected.emit('resume', data_to_send);
+                    callback(error);
+                    //state = "running";
+                  });
+                  console.log("00");
+                };
+                console.log(state);
+
+            }
+            else{
               console.log("Number of documents inserted: " + res.insertedCount);
               callback(error);
+            };
                 //db.close();
-              });
-            } else {
+          });
+        } else {
               callback(error);
             }
 
@@ -145,7 +167,32 @@ async function main(){
 };
 
 db_connected.on('update', () => {
+  state = "running";
   main();
+});
+
+db_connected.on('pause', () => {
+  state = "paused";
+  MongoClient.close;
+  //console.log("PAUSED");
+  q.pause();
+
+});
+
+db_connected.on('resume', (data_to_send) => {
+  state = "switched";
+  //console.log("running");
+  db_name = "orange"+db_number;
+  dbo = db_mlab.db(db_name);
+  //console.log("  " + db_name);
+  dbo.collection("fibre").insertMany(data_to_send, function(err, res) {
+    if(err) throw err;
+    console.log("Number of documents inserted: " + res.insertedCount);
+  });
+
+
+  q.resume();
+
 });
 
 
